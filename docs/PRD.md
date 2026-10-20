@@ -98,7 +98,7 @@ Get these three contracts right and every roadmap item attaches without a rewrit
 ## 6. The session record (core contract)
 
 Stored as JSON. One record per session. **Storage location:** plugin-private data under
-`.obsidian/plugins/study-session-tracker/sessions/` (tidier than vault-visible files; keeps the
+`.obsidian/plugins/today-i-learnt/sessions/` (tidier than vault-visible files; keeps the
 vault clean). The MCP server (v1.2) reads these files from disk.
 
 ```json
@@ -108,19 +108,20 @@ vault clean). The MCP server (v1.2) reads these files from disk.
   "end": "2026-10-20T09:51:40+05:30",
   "durationSec": 2908,
   "events": [
-    { "ts": "...", "type": "note.open",   "path": "Topics/Transformers.md" },
-    { "ts": "...", "type": "note.modify", "path": "Topics/Transformers.md", "bytesDelta": 740 },
-    { "ts": "...", "type": "note.create", "path": "Daily/scratch.md" },
-    { "ts": "...", "type": "link.follow", "from": "A.md", "to": "B.md" },
-    { "ts": "...", "type": "tag.touch",   "path": "A.md", "tag": "#attention" }
+    { "ts": "...", "source": "obsidian", "type": "note.open",   "path": "Topics/Transformers.md" },
+    { "ts": "...", "source": "obsidian", "type": "note.modify", "path": "Topics/Transformers.md", "bytesDelta": 740 },
+    { "ts": "...", "source": "obsidian", "type": "note.create", "path": "Daily/scratch.md" },
+    { "ts": "...", "source": "obsidian", "type": "link.follow", "from": "A.md", "to": "B.md" },
+    { "ts": "...", "source": "obsidian", "type": "tag.touch",   "path": "A.md", "tag": "#attention" }
   ],
+  "sources": ["obsidian"],
   "derived": {
     "notesTouched": ["Topics/Transformers.md", "..."],
     "created": ["Daily/scratch.md"],
     "timePerNoteSec": { "Topics/Transformers.md": 1200 },
-    "tagsTouched": ["#ml", "#attention"]
+    "tagsTouched": ["#ml", "#attention"],
+    "linksFollowed": 1
   },
-  "source": "obsidian-plugin",
   "summary": {
     "backend": "claude-api",
     "markdown": "...",
@@ -131,6 +132,19 @@ vault clean). The MCP server (v1.2) reads these files from disk.
 
 **Design note:** the record stores file *paths* and the generated *summary* durably. That is the
 only thing the future share/publish phase needs from v1 — so no schema change is required later.
+
+### Event schema rules
+- **Event `type` names what happened, not who reported it.** Types are named after the thing acted
+  on (`note.open`, `link.follow`), so any source that observes the same thing emits the same type,
+  and consumers (derive, summarizers, sinks) never branch on source.
+- **Every event carries `source`** (`"obsidian"`, later `"chrome"`, `"web-search"`) for provenance
+  and debugging only. The record lists contributing sources in `sources`.
+- **New sources add new types** (e.g. `page.visit`, `search.query`) rather than renaming existing
+  ones. Consumers ignore types they don't recognise, so older code keeps working.
+- **Events hold only plain JSON values** (strings, numbers) — never platform objects such as
+  Obsidian's `TFile`. This keeps records portable to the MCP server and other tools.
+- Each event type has a fixed set of required fields (modelled in code as a TypeScript
+  discriminated union in `src/types.ts`).
 
 ---
 

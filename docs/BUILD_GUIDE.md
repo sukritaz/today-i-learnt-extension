@@ -173,65 +173,54 @@ tests/
   template.test.ts
 ```
 
-Update `esbuild.config.mjs` so its entry point is `src/main.ts` instead of `main.ts`.
+The sample template already builds from `src/main.ts`, so no bundler changes are needed — just add
+the new folders next to `src/main.ts` and `src/settings.ts`.
 
-Write **`src/types.ts`** first — it is the contract everything else codes against:
+Write **`src/types.ts`** first — it is the contract everything else codes against. The full file is
+in the repo; the key part is the event shape:
 
 ```ts
-export type SessionEventType =
-  | "note.open" | "note.create" | "note.modify"
-  | "note.rename" | "note.delete"
-  | "link.follow" | "tag.touch";
+export type SourceId = "obsidian" | "chrome" | "web-search";
 
-export interface SessionEvent {
-  ts: string;            // ISO timestamp
-  type: SessionEventType;
-  path?: string;
-  from?: string;         // link.follow
-  to?: string;           // link.follow
-  oldPath?: string;      // note.rename
-  tag?: string;          // tag.touch
-  bytesDelta?: number;   // note.modify
+interface BaseEvent {
+  ts: string;          // ISO timestamp
+  source: SourceId;    // who reported it — informational only
 }
 
-export interface DerivedStats {
-  notesTouched: string[];
-  created: string[];
-  timePerNoteSec: Record<string, number>;
-  tagsTouched: string[];
-  linksFollowed: number;
-}
+export type SessionEvent =
+  | (BaseEvent & { type: "note.open";   path: string })
+  | (BaseEvent & { type: "note.create"; path: string })
+  | (BaseEvent & { type: "note.modify"; path: string; bytesDelta: number })
+  | (BaseEvent & { type: "note.rename"; path: string; oldPath: string })
+  | (BaseEvent & { type: "note.delete"; path: string })
+  | (BaseEvent & { type: "link.follow"; from: string; to: string })
+  | (BaseEvent & { type: "tag.touch";   path: string; tag: string });
 
-export interface SessionSummary {
-  backend: "claude-api" | "template";
-  markdown: string;
-  generatedAt: string;
-  fallbackReason?: string;
-}
+export type SessionEventType = SessionEvent["type"];
+```
 
-export interface SessionRecord {
-  id: string;
-  start: string;
-  end?: string;
-  durationSec?: number;
-  events: SessionEvent[];
-  derived?: DerivedStats;
-  source: "obsidian-plugin";
-  summary?: SessionSummary;
-}
+Plus `DerivedStats`, `SessionSummary`, `SessionRecord` (with `sources: SourceId[]`), and the
+`Summarizer` and `Sink` interfaces.
 
-export interface Summarizer {
-  summarize(record: SessionRecord): Promise<string>;
-}
+**Thought process — why generic event names?** Event types say *what happened* (`note.open`), not
+*who reported it* (`obsidian.note.open`). Consumers like `derive` and the summarizers only care what
+happened, so they never need `if (source === …)` branches. `source` is recorded on each event for
+provenance only. A new source (Chrome) adds new types (`page.visit`) instead of renaming old ones.
+Events hold only plain strings/numbers — never Obsidian objects like `TFile` — so any source can
+emit them and the MCP server can read them from JSON. See PRD §6 "Event schema rules".
 
-export interface Sink {
-  write(record: SessionRecord): Promise<void>;
+**What's a discriminated union?** Each line of `SessionEvent` is one event shape; `type` tells
+TypeScript which one you have, so it checks fields for you:
+```ts
+if (e.type === "link.follow") {
+  e.from;   // ✅ OK
+  e.path;   // ❌ compile error — link.follow has no path
 }
 ```
 
 ### ✅ Checkpoint
 - Folder skeleton exists, `npm run dev` still builds (empty files with `export {}` are fine).
-- `main.ts` is an empty plugin that just logs `"Study Session Tracker loaded"` in `onload()`.
+- `main.ts` is an empty plugin that just logs `"Today I Learnt loaded"` in `onload()`.
 - Commit: `chore: project structure and core types`.
 
 > **Ask Claude Code:** "Review src/types.ts against docs/PRD.md §6. Is anything missing that the MCP
