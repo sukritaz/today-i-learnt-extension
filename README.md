@@ -1,92 +1,156 @@
-# Obsidian Sample Plugin
+# Today I Learnt
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Track focused study sessions in Obsidian and get a summary of what you learned written into your
+daily note — automatically.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+Start a session, study in your vault as usual, stop the session. Today I Learnt records which notes
+you worked on and for how long, then writes a short summary into that day's daily note.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+> **Status:** early development (pre-release). Features below describe the v1 target and are being
+> built now. Not yet available in the community plugin store.
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
+---
 
-## First time developing plugins?
+## Features
 
-Quick starting guide for new plugin devs:
+- **Explicit start / stop** — two commands: *Start study session* and *Stop study session*.
+  A status bar indicator shows when a session is running.
+- **Automatic capture** of vault activity during a session:
+  - notes opened, created, modified, renamed, deleted
+  - time spent per note
+  - links followed between notes
+  - tags added
+- **Smart summaries** using the Claude API (bring your own key) — concise notes on the concepts you
+  worked through, not just a list of files.
+- **Works offline** — with no API key, or if the API call fails, you still get a template summary
+  (time, notes touched, topics, links followed). Nothing leaves your device.
+- **Daily-note integration** — summaries go into your daily note, respecting your Daily Notes /
+  Periodic Notes folder and date format. The note is created if it doesn't exist yet.
+- **Safe editing** — the plugin only ever writes inside its own marked block. The rest of your daily
+  note is never touched. Re-writing the same session updates its block in place.
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## What it looks like
 
-## Releasing new releases
+After stopping a session, your daily note gets a block like this:
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
+```markdown
+%% study-session:start id=2026-10-20T09:03 %%
+> [!study] Study session · 09:03–09:51 · 48m
+> **Topics:** Transformers, Attention
+> **Notes:** 6 touched, 2 created
+>
+> - Worked through how self-attention computes weighted sums over tokens in [[Transformers]]
+> - Connected multi-head attention to the earlier notes on [[Attention]]
+> - Started a scratch note comparing positional encoding schemes
+%% study-session:end %%
 ```
 
-If you have multiple URLs, you can also do:
+The `%% … %%` lines are Obsidian comments — hidden in reading view. They let the plugin find and
+update its own block without disturbing anything else. The `[!study]` callout is what you see.
 
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
+Multiple sessions in one day appear as separate blocks, one per session.
+
+## Usage
+
+1. Open the command palette (`Cmd/Ctrl + P`).
+2. Run **Start study session**.
+3. Study as usual — open notes, follow links, write, tag.
+4. Run **Stop study session**.
+5. Open today's daily note to see the summary.
+
+No hotkeys are assigned by default. Add your own under *Settings → Hotkeys* if you like.
+
+## Settings
+
+| Setting | Description |
+|---|---|
+| Claude API key | Optional. Enables AI summaries. Get one at [console.anthropic.com](https://console.anthropic.com). |
+| Model | Which Claude model to use for summaries. |
+| Send note content | When on, short excerpts of the notes you worked on are sent for better summaries. When off, only metadata (note titles, tags, time) is sent. |
+| Summary length | Short / medium / long. |
+| Include structured capture | Show counts and topics alongside the prose summary. |
+| Daily note location | Auto-detect from Daily Notes / Periodic Notes, or a custom path. |
+
+## Privacy & network use
+
+**Please read this before adding an API key.**
+
+- **Without an API key:** the plugin makes no network requests. Everything stays on your device.
+- **With an API key:** when a session stops, the plugin sends session data to **Anthropic's Claude
+  API** to generate the summary. This includes note titles, tags, time spent, and — if *Send note
+  content* is on — excerpts of the notes you worked on during the session. See
+  [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy).
+- **Your API key is stored in plain text** in `.obsidian/plugins/today-i-learnt/data.json`. If you
+  sync your vault (Obsidian Sync, iCloud, git, etc.), the key syncs with it. Don't commit this file
+  to a public repository.
+- API usage is billed to your own Anthropic account.
+
+## What is and isn't captured
+
+**Captured (inside your vault only):** notes opened, created, modified, renamed, deleted; time per
+note; links followed; tags added.
+
+**Not captured:** anything outside Obsidian — browser activity, web searches, other apps — and
+reading position inside PDFs.
+
+Time per note counts the time a note was the active one. Long idle gaps are capped so leaving
+Obsidian open doesn't inflate your study time.
+
+## Where data is stored
+
+- **Summaries:** in your daily notes, inside the study block.
+- **Session records:** one JSON file per session in
+  `.obsidian/plugins/today-i-learnt/sessions/`. These hold the raw activity and summary, and are
+  kept out of your visible notes.
+
+## Installation
+
+### From the community store
+Coming soon — not yet submitted.
+
+### Manual install
+1. Download `main.js`, `manifest.json` and `styles.css` from the
+   [latest release](https://github.com/sukritaz/today-i-learnt-extension/releases).
+2. Create the folder `<your vault>/.obsidian/plugins/today-i-learnt/` and put the three files in it.
+3. In Obsidian: *Settings → Community plugins* → reload the list → enable **Today I Learnt**.
+
+### Via BRAT (beta testing)
+Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, then add
+`sukritaz/today-i-learnt-extension` as a beta plugin.
+
+## Roadmap
+
+| Version | Planned |
+|---|---|
+| **v1.0** | Start/stop sessions, vault activity capture, daily-note study block, Claude summaries with offline template fallback |
+| **v1.2** | Local MCP server so Claude Code can read your study sessions and write summaries |
+| **v2** | More context sources: a Chrome extension and web-search activity |
+| **v3** | Share or publish what you learned — summaries or source notes |
+
+See [`docs/PRD.md`](docs/PRD.md) for the full product spec.
+
+## Development
+
+Requires Node.js 20+.
+
+```bash
+npm install
+npm run dev     # rebuild on every change
+npm run build   # production build
+npm run lint    # lint with Obsidian's rules
 ```
 
-## API Documentation
+For local testing, link this folder into a **test vault** (not your real one):
 
-See https://docs.obsidian.md
+```bash
+ln -s "$(pwd)" /path/to/test-vault/.obsidian/plugins/today-i-learnt
+```
+
+Install [Hot-Reload](https://github.com/pjeby/hot-reload) in the test vault to reload the plugin
+automatically after each build.
+
+A step-by-step build guide is in [`docs/BUILD_GUIDE.md`](docs/BUILD_GUIDE.md).
+
+## License
+
+[MIT](LICENSE)

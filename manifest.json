@@ -5,7 +5,6 @@
 	"minAppVersion": "1.0.0",
 	"description": "Keep track of what you've learned each day.",
 	"author": "Chubby Today",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"authorUrl": "https://github.com/sukritaz/today-i-learnt-extension",
 	"isDesktopOnly": false
 }
