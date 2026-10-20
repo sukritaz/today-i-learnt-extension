@@ -1,0 +1,11 @@
+{
+	"id": "today-i-learnt",
+	"name": "Today I Learnt",
+	"version": "1.0.0",
+	"minAppVersion": "1.0.0",
+	"description": "Keep track of what you've learned each day.",
+	"author": "Chubby Today",
+	"authorUrl": "https://obsidian.md",
+	"fundingUrl": "https://obsidian.md/pricing",
+	"isDesktopOnly": false
+}
