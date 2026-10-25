@@ -237,9 +237,14 @@ off immediately.
 
 ### Do
 ```bash
-npm install -D vitest
+npm install -D vitest@3
+npm pkg set scripts.test="vitest run" scripts.test:watch="vitest"
 ```
-Add to `package.json` scripts: `"test": "vitest run"`, `"test:watch": "vitest"`.
+Pin `vitest@3`: Vitest 4 needs Node ≥ 20.19, and on older Node 20 npm crashes with
+`Cannot read properties of null (reading 'edgesOut')`. (Upgrading to Node 22 LTS also works.)
+
+Add `"tests/**/*.ts"` to `include` in `tsconfig.json`, otherwise `npm run lint` fails on test files.
+Tests never end up in `main.js` — esbuild only bundles what `src/main.ts` imports.
 
 Write a trivial test (`tests/sanity.test.ts`: `expect(1 + 1).toBe(2)`) and run `npm test`.
 
@@ -668,6 +673,7 @@ npm run test:watch   # terminal 2: re-run unit tests on save
 | Hundreds of `note.create` events at launch | Listener registered before `onLayoutReady` |
 | CORS / network error calling Claude | Using `fetch` instead of `requestUrl` |
 | Callout renders broken after summary | Some summary lines missing the `> ` prefix |
+| `npm error Cannot read properties of null (reading 'edgesOut')` | npm resolver bug with a package whose peers need a newer Node. Pin an older major (e.g. `vitest@3`) or upgrade Node |
 | Block duplicated instead of updated | `upsertBlock` regex not matching the id (escape special chars) |
 
 ## Appendix C — Suggested estimate
