@@ -2,6 +2,7 @@ import { Notice, Plugin } from 'obsidian';
 import { DEFAULT_SETTINGS, TilSettings } from './settings';
 import { SessionStore } from './core/sessions';
 import { ObsidianSource } from './sources/obsidianSource';
+import { derive } from './core/derive';
 
 const STATUS_REFRESH_MS = 30 * 1000;
 
@@ -66,6 +67,7 @@ export default class TodayILearntPlugin extends Plugin {
 	private stopSession() {
 		this.source.flush();
 		const record = this.store.stop(new Date());
+		record.derived = derive(record);
 		this.updateStatusBar();
 		// Temporary until the daily-note writer exists (Phase 10).
 		console.debug('Study session record', record);
