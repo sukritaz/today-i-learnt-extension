@@ -17,12 +17,20 @@ export class SessionStore {
 		}
 		const iso = now.toISOString();
 		this.current = {
-			id: `${iso}-session`,
+			id: `${iso.replace(/[:.]/g, '-')}-session`,
 			start: iso,
 			events: [],
 			sources: [],
 		};
 		return this.current;
+	}
+
+	/** Resume an ongoing study session after reload. */
+	resume(record: SessionRecord): void {
+		if(this.current !== null) {
+			throw new Error("A study session is already running");
+		}
+		this.current = record;
 	}
 
 	/** Records an event in the running session. Ignored when no session is running. */
