@@ -1,16 +1,22 @@
 import { Notice, Plugin } from 'obsidian';
 import { DEFAULT_SETTINGS, TilSettings } from './settings';
 import { SessionStore } from './core/sessions';
+import { ObsidianSource } from './sources/obsidianSource';
 
 const STATUS_REFRESH_MS = 30 * 1000;
 
 export default class TodayILearntPlugin extends Plugin {
 	settings!: TilSettings;
 	private store = new SessionStore();
+	private source!: ObsidianSource;
 	private statusBarEl!: HTMLElement;
 
 	async onload() {
 		await this.loadSettings();
+
+		// Vault activity flows into the store; the store ignores it while idle.
+		this.source = new ObsidianSource(this, (event) => this.store.addEvent(event));
+		this.source.register();
 
 		// Command palette entries. checkCallback hides each command when it
 		// doesn't apply: "Start" only shows when idle, "Stop" only while studying.
@@ -52,11 +58,13 @@ export default class TodayILearntPlugin extends Plugin {
 
 	private startSession() {
 		this.store.start(new Date());
+		this.source.startSession();
 		this.updateStatusBar();
 		new Notice('Study session started');
 	}
 
 	private stopSession() {
+		this.source.flush();
 		const record = this.store.stop(new Date());
 		this.updateStatusBar();
 		// Temporary until the daily-note writer exists (Phase 10).
