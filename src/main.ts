@@ -4,6 +4,9 @@ import { SessionStore } from './core/sessions';
 import { ObsidianSource } from './sources/obsidianSource';
 import { derive } from './core/derive';
 import { RecordStore } from './storage/recordStore';
+import { summarize } from './summarizers';
+import { formatDuration } from './core/format';
+import { DailyNoteSink } from './sinks/dailyNotes';
 
 const STATUS_REFRESH_MS = 30 * 1000;
 
@@ -12,6 +15,7 @@ export default class TodayILearntPlugin extends Plugin {
 	private store = new SessionStore();
 	private source!: ObsidianSource;
 	private records!: RecordStore;
+	private dailyNote!: DailyNoteSink;
 	private statusBarEl!: HTMLElement;
 
 	async onload() {
@@ -20,6 +24,7 @@ export default class TodayILearntPlugin extends Plugin {
 		const pluginDir =
 			this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
 		this.records = new RecordStore(this.app.vault.adapter, pluginDir);
+		this.dailyNote = new DailyNoteSink(this.app);
 
 		// Pick up a session that was running before a reload or crash.
 		const saved = await this.records.loadActive();
@@ -83,13 +88,22 @@ export default class TodayILearntPlugin extends Plugin {
 
 	private async stopSession() {
 		this.source.flush();
-		const record = this.store.stop(new Date());
+		const now = new Date();
+		const record = this.store.stop(now);
 		record.derived = derive(record);
+		record.summary = await summarize(record, now);
 		this.updateStatusBar();
 		await this.records.save(record);
 		await this.records.clearActive();
-		// Temporary until the daily-note writer exists (Phase 10).
-		console.debug('Study session record', record);
+
+		// The record is already saved, so a failure here loses nothing.
+		try {
+			await this.dailyNote.write(record);
+		} catch (error) {
+			console.error('Could not write study block to daily note', error);
+			new Notice('Study session saved, but writing to the daily note failed');
+			return;
+		}
 		new Notice(`Study session stopped · ${formatDuration(record.durationSec ?? 0)}`);
 	}
 
@@ -125,11 +139,4 @@ export default class TodayILearntPlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
-}
-
-/** 2880 → "48m", 4320 → "1h 12m". */
-function formatDuration(totalSec: number): string {
-	const minutes = Math.floor(totalSec / 60);
-	if (minutes < 60) return `${minutes}m`;
-	return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }

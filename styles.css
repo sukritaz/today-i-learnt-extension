@@ -1,8 +1,5 @@
-/*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+/* Custom [!study] callout used for the daily-note session block. */
+.callout[data-callout="study"] {
+	--callout-color: 94, 129, 172;
+	--callout-icon: lucide-graduation-cap;
+}
