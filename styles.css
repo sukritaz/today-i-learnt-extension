@@ -3,3 +3,15 @@
 	--callout-color: 94, 129, 172;
 	--callout-icon: lucide-graduation-cap;
 }
+
+/* Privacy warning under the API key field. */
+.til-setting-warning {
+	color: var(--text-warning);
+	font-size: var(--font-ui-small);
+	padding-bottom: var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.til-setting-warning p {
+	margin: 0 0 var(--size-4-1);
+}

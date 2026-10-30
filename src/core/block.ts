@@ -16,7 +16,12 @@ const TOP_TOPICS = 3;
  *   > <summary>
  *   %% study-session:end %%
  */
-export function renderBlock(record: SessionRecord): string {
+export interface BlockOptions {
+	/** Show the "Topics" and "Notes" lines above the summary. */
+	includeStructured: boolean;
+}
+
+export function renderBlock(record: SessionRecord, options: BlockOptions): string {
 	const stats = record.derived ?? derive(record);
 	const end = record.end ?? record.start;
 	const duration = formatDuration(record.durationSec ?? 0);
@@ -25,13 +30,16 @@ export function renderBlock(record: SessionRecord): string {
 		`[!study] Study session · ${formatClock(record.start)}–${formatClock(end)} · ${duration}`,
 	];
 
-	const topics = stats.notesTouched.slice(0, TOP_TOPICS).map(noteTitle);
-	if (topics.length > 0) lines.push(`**Topics:** ${topics.join(", ")}`);
-	lines.push(`**Notes:** ${stats.notesTouched.length} touched, ${stats.created.length} created`);
+	if (options.includeStructured) {
+		const topics = stats.notesTouched.slice(0, TOP_TOPICS).map(noteTitle);
+		if (topics.length > 0) lines.push(`**Topics:** ${topics.join(", ")}`);
+		lines.push(`**Notes:** ${stats.notesTouched.length} touched, ${stats.created.length} created`);
+	}
 
 	const summary = record.summary;
 	if (summary) {
-		lines.push("");
+		// Blank callout line between the stats and the prose, only if there are stats.
+		if (lines.length > 1) lines.push("");
 		// The summary can be several lines (Claude returns bullets); each needs "> " to stay in the callout.
 		lines.push(...summary.markdown.trim().split("\n"));
 		if (summary.fallbackReason) {

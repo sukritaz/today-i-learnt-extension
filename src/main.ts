@@ -1,5 +1,5 @@
 import { Notice, Plugin } from 'obsidian';
-import { DEFAULT_SETTINGS, TilSettings } from './settings';
+import { DEFAULT_SETTINGS, TilSettings, TilSettingTab } from './settings';
 import { SessionStore } from './core/sessions';
 import { ObsidianSource } from './sources/obsidianSource';
 import { derive } from './core/derive';
@@ -24,7 +24,8 @@ export default class TodayILearntPlugin extends Plugin {
 		const pluginDir =
 			this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
 		this.records = new RecordStore(this.app.vault.adapter, pluginDir);
-		this.dailyNote = new DailyNoteSink(this.app);
+		this.dailyNote = new DailyNoteSink(this.app, () => this.settings);
+		this.addSettingTab(new TilSettingTab(this.app, this));
 
 		// Pick up a session that was running before a reload or crash.
 		const saved = await this.records.loadActive();
