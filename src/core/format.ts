@@ -18,3 +18,10 @@ export function formatClock(iso: string): string {
 	const mm = String(date.getMinutes()).padStart(2, "0");
 	return `${hh}:${mm}`;
 }
+
+/** "ML/Attention.md" → "[[ML/Attention|Attention]]"; "Attention.md" → "[[Attention]]". */
+export function wikilink(path: string): string {
+	const target = path.endsWith(".md") ? path.slice(0, -".md".length) : path;
+	const title = noteTitle(path);
+	return target === title ? `[[${title}]]` : `[[${target}|${title}]]`;
+}

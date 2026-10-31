@@ -20,7 +20,6 @@ export class SessionStore {
 			id: `${iso.replace(/[:.]/g, '-')}-session`,
 			start: iso,
 			events: [],
-			sources: [],
 		};
 		return this.current;
 	}
@@ -39,9 +38,6 @@ export class SessionStore {
 			return;
 		}
 		this.current.events.push(event);
-		if (!this.current.sources.includes(event.source)) {
-			this.current.sources.push(event.source);
-		}
 	}
 
 	stop(now: Date): SessionRecord {

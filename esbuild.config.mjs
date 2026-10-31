@@ -16,6 +16,8 @@ const context = await esbuild.context({
 	},
 	entryPoints: ['src/main.ts'],
 	bundle: true,
+	// Lets the plugin import skills/*.md as a string, so the skill file ships inside main.js.
+	loader: { '.md': 'text' },
 	external: [
 		'obsidian',
 		'electron',

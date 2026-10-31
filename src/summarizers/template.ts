@@ -1,16 +1,19 @@
 import type { DerivedStats, SessionRecord, Summarizer } from "../types";
 import { derive } from "../core/derive";
-import { formatDuration, noteTitle } from "../core/format";
+import { formatDuration, wikilink } from "../core/format";
 
-/** How many notes and tags to name in the "Focus" line. */
-const TOP_NOTES = 3;
-const TOP_TAGS = 3;
+/** Questions in the offline recap. */
+const MAX_QUESTIONS = 5;
 
 /**
- * Offline summary built only from the record's stats. No network, always works,
- * and it's what we fall back to when the Claude API fails.
+ * Offline recap built only from the record's stats. No network, always works,
+ * and it's what we fall back to when the Claude API fails. It can't read the
+ * notes, so its questions come from the path between them.
  *
- * Example: "48m across 6 notes (2 created). Focus: Transformers, Attention, #ml. Followed 3 links."
+ * Example:
+ *   *48m across 6 notes (2 created), followed 3 links.*
+ *   1. How does [[Partitioning]] build on [[Kafka]]?
+ *   2. What did you write down in [[Idempotency]], and why?
  */
 export class TemplateSummarizer implements Summarizer {
 	summarize(record: SessionRecord): Promise<string> {
@@ -20,31 +23,43 @@ export class TemplateSummarizer implements Summarizer {
 }
 
 export function renderTemplate(record: SessionRecord): string {
-	const stats: DerivedStats = record.derived ?? derive(record);
+	const stats = record.derived ?? derive(record);
 	const duration = formatDuration(record.durationSec ?? 0);
 	const noteCount = stats.notesTouched.length;
 
 	if (noteCount === 0) {
-		return `${duration} session, no notes touched.`;
+		return `*${duration} session, no notes touched.*`;
 	}
 
-	const sentences: string[] = [];
+	const created = stats.created.length > 0 ? ` (${stats.created.length} created)` : "";
+	const links = stats.linksFollowed > 0 ? `, followed ${plural(stats.linksFollowed, "link")}` : "";
+	const overview = `*${duration} across ${plural(noteCount, "note")}${created}${links}.*`;
 
-	const createdPart = stats.created.length > 0 ? ` (${stats.created.length} created)` : "";
-	sentences.push(`${duration} across ${plural(noteCount, "note")}${createdPart}.`);
+	const questions = recapQuestions(stats).map((question, index) => `${index + 1}. ${question}`);
+	return [overview, ...questions].join("\n");
+}
 
-	// notesTouched is already sorted by time spent, most first.
-	const focus = [
-		...stats.notesTouched.slice(0, TOP_NOTES).map(noteTitle),
-		...stats.tagsTouched.slice(0, TOP_TAGS),
-	];
-	sentences.push(`Focus: ${focus.join(", ")}.`);
+function recapQuestions(stats: DerivedStats): string[] {
+	const questions: string[] = [];
 
-	if (stats.linksFollowed > 0) {
-		sentences.push(`Followed ${plural(stats.linksFollowed, "link")}.`);
+	for (const { from, to, viaLink } of stats.transitions) {
+		questions.push(
+			viaLink
+				? `How does ${wikilink(to)} build on ${wikilink(from)}?`
+				: `How does ${wikilink(from)} relate to ${wikilink(to)}?`,
+		);
+	}
+	for (const path of stats.created) {
+		questions.push(`What did you write down in ${wikilink(path)}, and why?`);
+	}
+	// A session in one note has no path; ask about the notes studied longest instead.
+	if (questions.length === 0) {
+		for (const path of stats.notesTouched) {
+			questions.push(`Can you explain the main idea of ${wikilink(path)} without looking?`);
+		}
 	}
 
-	return sentences.join(" ");
+	return questions.slice(0, MAX_QUESTIONS);
 }
 
 /** plural(1, "note") → "1 note", plural(3, "note") → "3 notes". */

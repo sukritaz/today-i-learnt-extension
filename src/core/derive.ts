@@ -1,4 +1,4 @@
-import type { DerivedStats, SessionEvent, SessionRecord } from "../types";
+import type { DerivedStats, NoteTransition, SessionEvent, SessionRecord } from "../types";
 
 /** A gap longer than this between opens counts only up to the cap (likely idle). */
 const IDLE_CAP_MS = 20 * 60 * 1000;
@@ -16,6 +16,9 @@ export function derive(record: SessionRecord): DerivedStats {
 	const tags = new Set<string>();
 	const timeMs: Record<string, number> = {};
 	let linksFollowed = 0;
+	const visitOrder: string[] = [];
+	const transitions: NoteTransition[] = [];
+	const linkPairs = collectLinkPairs(record.events, resolve);
 
 	// The note currently in front of the user, and since when.
 	let activePath: string | null = null;
@@ -32,9 +35,19 @@ export function derive(record: SessionRecord): DerivedStats {
 			case "note.open": {
 				const at = toMs(event.ts);
 				closeActive(at);
-				activePath = resolve(event.path);
+				const path = resolve(event.path);
+				// First visit: record where it was reached from. Going back to a note
+				// draws no edge; the next new note just branches off it.
+				if (!visitOrder.includes(path)) {
+					if (activePath !== null && activePath !== path) {
+						const viaLink = linkPairs.has(pairKey(activePath, path));
+						transitions.push({ from: activePath, to: path, viaLink });
+					}
+					visitOrder.push(path);
+				}
+				activePath = path;
 				activeSince = at;
-				touched.add(activePath);
+				touched.add(path);
 				break;
 			}
 			case "note.modify":
@@ -80,7 +93,22 @@ export function derive(record: SessionRecord): DerivedStats {
 		timePerNoteSec,
 		tagsTouched: [...tags],
 		linksFollowed,
+		visitOrder,
+		transitions,
 	};
+}
+
+/** Every "followed a link from A to B" pair, with renames applied. */
+function collectLinkPairs(events: SessionEvent[], resolve: (path: string) => string): Set<string> {
+	const pairs = new Set<string>();
+	for (const event of events) {
+		if (event.type === "link.follow") pairs.add(pairKey(resolve(event.from), resolve(event.to)));
+	}
+	return pairs;
+}
+
+function pairKey(from: string, to: string): string {
+	return `${from}\n${to}`;
 }
 
 /** Returns a function that maps any path seen in the session to its final name. */

@@ -3,8 +3,6 @@ import type { SessionEvent } from '../types';
 
 type Emit = (event: SessionEvent) => void;
 
-const SOURCE = 'obsidian' as const;
-
 /** Autosave fires every ~2s while typing; a burst of edits ends after this much quiet. */
 const MODIFY_IDLE_MS = 10 * 1000;
 
@@ -16,11 +14,11 @@ interface PendingModify {
 }
 
 /**
- * Translates Obsidian vault and workspace activity into SessionEvents.
+ * Translates vault and workspace activity into SessionEvents.
  * Knows nothing about sessions, summaries or daily notes: it only emits.
  * The store decides whether to keep an event (it drops them when idle).
  */
-export class ObsidianSource {
+export class ActivityTracker {
 	private plugin: Plugin;
 	private emit: Emit;
 
@@ -83,10 +81,10 @@ export class ObsidianSource {
 		const prevPath = this.lastOpenPath;
 		this.lastOpenPath = file.path;
 
-		this.send({ ts, source: SOURCE, type: 'note.open', path: file.path });
+		this.send({ ts, type: 'note.open', path: file.path });
 		// Obsidian has no "link clicked" event: infer it when the previous note links here.
 		if (prevPath && this.linksTo(prevPath, file)) {
-			this.send({ ts, source: SOURCE, type: 'link.follow', from: prevPath, to: file.path });
+			this.send({ ts, type: 'link.follow', from: prevPath, to: file.path });
 		}
 
 		this.knownSizes.set(file.path, file.stat.size);
@@ -117,7 +115,7 @@ export class ObsidianSource {
 		if (!isNote(file)) return;
 		this.knownSizes.set(file.path, file.stat.size);
 		this.knownTags.set(file.path, new Set());
-		this.send({ ts: timestamp(), source: SOURCE, type: 'note.create', path: file.path });
+		this.send({ ts: timestamp(), type: 'note.create', path: file.path });
 	}
 
 	private onDelete(file: TAbstractFile): void {
@@ -126,7 +124,7 @@ export class ObsidianSource {
 		this.knownSizes.delete(file.path);
 		this.knownTags.delete(file.path);
 		if (this.lastOpenPath === file.path) this.lastOpenPath = null;
-		this.send({ ts: timestamp(), source: SOURCE, type: 'note.delete', path: file.path });
+		this.send({ ts: timestamp(), type: 'note.delete', path: file.path });
 	}
 
 	private onRename(file: TAbstractFile, oldPath: string): void {
@@ -135,7 +133,7 @@ export class ObsidianSource {
 		moveKey(this.knownSizes, oldPath, file.path);
 		moveKey(this.knownTags, oldPath, file.path);
 		if (this.lastOpenPath === oldPath) this.lastOpenPath = file.path;
-		this.send({ ts: timestamp(), source: SOURCE, type: 'note.rename', path: file.path, oldPath });
+		this.send({ ts: timestamp(), type: 'note.rename', path: file.path, oldPath });
 	}
 
 	private onMetadataChanged(file: TFile, cache: CachedMetadata): void {
@@ -149,7 +147,7 @@ export class ObsidianSource {
 		const ts = timestamp();
 		for (const tag of now) {
 			if (!before.has(tag)) {
-				this.send({ ts, source: SOURCE, type: 'tag.touch', path: file.path, tag });
+				this.send({ ts, type: 'tag.touch', path: file.path, tag });
 			}
 		}
 	}
@@ -168,7 +166,6 @@ export class ObsidianSource {
 		this.knownSizes.set(pending.path, pending.endSize);
 		this.emit({
 			ts: pending.ts,
-			source: SOURCE,
 			type: 'note.modify',
 			path: pending.path,
 			bytesDelta: pending.endSize - pending.startSize,

@@ -1,21 +1,23 @@
 import { Notice, Plugin } from 'obsidian';
 import { DEFAULT_SETTINGS, TilSettings, TilSettingTab } from './settings';
 import { SessionStore } from './core/sessions';
-import { ObsidianSource } from './sources/obsidianSource';
+import { ActivityTracker } from './capture/activityTracker';
 import { derive } from './core/derive';
 import { RecordStore } from './storage/recordStore';
 import { summarize } from './summarizers';
 import { formatDuration } from './core/format';
 import { DailyNoteSink } from './sinks/dailyNotes';
+import { ClaudeSummarizer } from './summarizers/claude';
 
 const STATUS_REFRESH_MS = 30 * 1000;
 
 export default class TodayILearntPlugin extends Plugin {
 	settings!: TilSettings;
 	private store = new SessionStore();
-	private source!: ObsidianSource;
+	private tracker!: ActivityTracker;
 	private records!: RecordStore;
 	private dailyNote!: DailyNoteSink;
+	private claude!: ClaudeSummarizer;
 	private statusBarEl!: HTMLElement;
 
 	async onload() {
@@ -25,6 +27,7 @@ export default class TodayILearntPlugin extends Plugin {
 			this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`;
 		this.records = new RecordStore(this.app.vault.adapter, pluginDir);
 		this.dailyNote = new DailyNoteSink(this.app, () => this.settings);
+		this.claude = new ClaudeSummarizer(this.app, () => this.settings);
 		this.addSettingTab(new TilSettingTab(this.app, this));
 
 		// Pick up a session that was running before a reload or crash.
@@ -34,8 +37,8 @@ export default class TodayILearntPlugin extends Plugin {
 		}
 
 		// Vault activity flows into the store; the store ignores it while idle.
-		this.source = new ObsidianSource(this, (event) => this.store.addEvent(event));
-		this.source.register();
+		this.tracker = new ActivityTracker(this, (event) => this.store.addEvent(event));
+		this.tracker.register();
 
 		// Command palette entries. checkCallback hides each command when it
 		// doesn't apply: "Start" only shows when idle, "Stop" only while studying.
@@ -81,19 +84,28 @@ export default class TodayILearntPlugin extends Plugin {
 
 	private async startSession() {
 		const record = this.store.start(new Date());
-		this.source.startSession();
+		this.tracker.startSession();
 		this.updateStatusBar();
 		new Notice('Study session started');
 		await this.records.saveActive(record);
 	}
 
 	private async stopSession() {
-		this.source.flush();
+		this.tracker.flush();
 		const now = new Date();
 		const record = this.store.stop(now);
 		record.derived = derive(record);
-		record.summary = await summarize(record, now);
+		// Before the summary: a Claude call can take a few seconds.
 		this.updateStatusBar();
+
+		// Questions only when Grill me is on; otherwise the block shows just the path.
+		if (this.settings.grillMe) {
+			new Notice('Generating grill-me questions…');
+			record.summary = await summarize(record, now, this.claude);
+			if (record.summary.fallbackReason) {
+				new Notice(`Claude unavailable (${record.summary.fallbackReason}), used offline questions`);
+			}
+		}
 		await this.records.save(record);
 		await this.records.clearActive();
 
