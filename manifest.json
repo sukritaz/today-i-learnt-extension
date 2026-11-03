@@ -1,7 +1,7 @@
 {
 	"id": "today-i-learnt",
 	"name": "Today I Learnt",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "1.1.0",
 	"description": "Track study sessions and write your path through the notes, with optional recall questions, into your daily note.",
 	"author": "Chubby Today",

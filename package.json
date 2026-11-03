@@ -1,6 +1,6 @@
 {
 	"name": "today-i-learnt",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Track study sessions and write your path through the notes, with optional recall questions, into your daily note.",
 	"main": "main.js",
 	"type": "module",
