@@ -1,7 +1,7 @@
 {
 	"name": "today-i-learnt",
 	"version": "1.0.0",
-	"description": "This plugin will help you track your study sessions and summarize what you've learned in your daily note.",
+	"description": "Track study sessions and write your path through the notes, with optional recall questions, into your daily note.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
